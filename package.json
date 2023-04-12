@@ -88,9 +88,11 @@
     }
   },
   "dependencies": {
+    "antd": "^5.4.0",
     "electron-debug": "^3.2.0",
     "electron-log": "^4.4.8",
     "electron-updater": "^5.3.0",
+    "get-port-electron": "^5.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.1"

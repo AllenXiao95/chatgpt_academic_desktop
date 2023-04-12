@@ -9,11 +9,18 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
+import os from 'os';
+import fs from 'fs';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
-import { resolveHtmlPath } from './util';
+import {
+  createOrRewritePythonFile,
+  resolveHtmlPath,
+  generateDockerfile,
+  runDocker
+} from './util';
 
 class AppUpdater {
   constructor() {
@@ -29,6 +36,23 @@ ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log(msgTemplate(arg));
   event.reply('ipc-example', msgTemplate('pong'));
+});
+
+ipcMain.on('renderAndRunDocker', async (event, arg) => {
+  const srcPath = path.join(os.homedir(), 'chatgpt_academic_data');
+
+  if (app.isPackaged && !fs.existsSync(srcPath)) {
+    fs.mkdirSync(srcPath);
+  }
+
+  const configPath = app.isPackaged ? path.join(srcPath, 'config.py') : 'config.py';
+  const dockerPath = app.isPackaged ? path.join(srcPath, 'Dockerfile') : 'Dockerfile';
+  createOrRewritePythonFile(configPath, arg);
+  generateDockerfile(dockerPath);
+
+  // run docker
+  const activeUrl = runDocker(dockerPath);
+  console.log(activeUrl);
 });
 
 if (process.env.NODE_ENV === 'production') {
