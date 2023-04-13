@@ -60,3 +60,10 @@ a:hover {
   align-items: center;
   margin: 20px 0;
 }
+
+.form-wrapper {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 500px;
+}

@@ -15,6 +15,7 @@ import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
+import Store from 'electron-store'
 import {
   createOrRewritePythonFile,
   resolveHtmlPath,
@@ -31,6 +32,7 @@ class AppUpdater {
 }
 
 let mainWindow: BrowserWindow | null = null;
+const store = new Store()
 
 ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
@@ -51,9 +53,27 @@ ipcMain.on('renderAndRunDocker', async (event, arg) => {
   generateDockerfile(dockerPath);
 
   // run docker
-  const activeUrl = runDocker(dockerPath);
-  console.log(activeUrl);
+  const activeUrl = runDocker(app.isPackaged ? srcPath : './');
+  if (typeof activeUrl === 'string') {
+    mainWindow && mainWindow.loadURL(activeUrl);
+  }
 });
+
+ipcMain.on('runByUrl', async (event, arg) => {
+  const activeUrl = arg;
+  if (typeof activeUrl === 'string') {
+    mainWindow && mainWindow.loadURL(activeUrl);
+  }
+})
+
+ipcMain.on('setStore', (_, key, value) => {
+  store.set(key, value)
+})
+
+ipcMain.on('getStore', (_, key) => {
+  let value = store.get(key)
+  _.returnValue = value || ""
+})
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');

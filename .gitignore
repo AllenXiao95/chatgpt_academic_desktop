@@ -18,6 +18,9 @@ node_modules
 # OSX
 .DS_Store
 
+Dockerfile
+config.py
+
 release/app/dist
 release/build
 .erb/dll

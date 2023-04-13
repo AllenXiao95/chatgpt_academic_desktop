@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Checkbox, Form, Input, Radio } from 'antd';
+import { Button, Checkbox, Form, Input, Radio, Spin } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 
 interface IndexFormProp {
@@ -38,15 +38,14 @@ function IndexForm(props: IndexFormProp) {
     AUTHENTICATION: [],
   };
 
+  let URL = props.config.URL;
   // 注册模式切换变量
-  const [mode, setMode] = useState<string>(props.config.MODE);
+  const [mode, setMode] = useState<string>('');
   const onModeChange = (e: RadioChangeEvent) => {
     setMode(e.target.value as string);
   }
 
   const onFinish = (values: any) => {
-    // const port = window.electron.ipcRenderer.getFreePort();
-    // console.log("port", port);
     // 将values和合并到config
     Object.assign(config, values);
     console.log('onFinish', values, config);
@@ -54,13 +53,12 @@ function IndexForm(props: IndexFormProp) {
   };
 
   return (
-    <div>
+    <div className='form-wrapper'>
       <Form
         name="basic"
         labelCol={{ span: 8 }}
         wrapperCol={{ span: 16 }}
         style={{ maxWidth: 600 }}
-        initialValues={{ remember: true }}
         onFinish={onFinish}
         autoComplete="off"
       >
@@ -82,14 +80,14 @@ function IndexForm(props: IndexFormProp) {
                 name="API_KEY"
                 rules={[{ required: true, message: 'Please input your api key!' }]}
               >
-                <Input.Password value={config.API_KEY} />
+                <Input value={config.API_KEY} placeholder='example: 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' />
               </Form.Item>
               <Form.Item
                 label="Proxy(HTTP)"
                 name={['proxies', 'http']}
                 rules={[{ required: true, message: 'Please input your proxy setting!' }]}
               >
-                <Input value={config.proxies.http} />
+                <Input value={config.proxies.http} placeholder='example: socks5h://localhost:11284' />
               </Form.Item>
 
               <Form.Item
@@ -97,7 +95,7 @@ function IndexForm(props: IndexFormProp) {
                 name={['proxies', 'https']}
                 rules={[{ required: true, message: 'Please input your proxy setting!' }]}
               >
-                <Input value={config.proxies.https} />
+                <Input value={config.proxies.https} placeholder='example: socks5h://localhost:11284' />
               </Form.Item>
             </div>
           )
@@ -110,7 +108,7 @@ function IndexForm(props: IndexFormProp) {
               name="url"
               rules={[{ required: true, message: 'Please input url!' }]}
             >
-              <Input.Password value={config.API_KEY} />
+              <Input value={URL} />
             </Form.Item>
           )
         }
