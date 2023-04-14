@@ -20,6 +20,9 @@ const electronHandler = {
     renderAndRunDocker(text: string) {
       ipcRenderer.send('renderAndRunDocker', text);
     },
+    reRunDocker(port: number) {
+      ipcRenderer.send('reRunDocker', port);
+    },
     runByUrl(url: string) {
       ipcRenderer.send('runByUrl', url);
     },
@@ -29,7 +32,7 @@ const electronHandler = {
     getStoreValue(key: string) {
       const resp = ipcRenderer.sendSync("getStore", key)
       return resp
-    }
+    },
   },
 };
 

@@ -15,29 +15,46 @@ function Hello() {
     WEB_PORT: 0,
     LLM_MODEL: 'gpt-3.5-turbo',
     API_URL: 'https://api.openai.com/v1/chat/completions',
-    MODE: 'docker',
-    URL: ''
+    mode: 'docker',
+    url: '',
+    remember: false
   });
 
   useEffect(() => {
-    let formConfig = window.electron.ipcRenderer.getStoreValue('formConfig') || '';
-    if (formConfig) {
-      formConfig = JSON.parse(formConfig);
-      setFormConfig(formConfig);
-    }
+    let formConfigStore = window.electron.ipcRenderer.getStoreValue('formConfig') || '';
+    if (formConfigStore !== '') {
+      formConfigStore = JSON.parse(formConfigStore)
+
+      formConfigStore.remember ? setFormConfig(formConfigStore) : null
+    };
   }, [])
 
 
   // Form回调
   const onFormChange = (values: any) => {
-    if (values.remember) {
-      window.electron.ipcRenderer.setStoreValue('formConfig', JSON.stringify(values));
+    let formConfigStore = window.electron.ipcRenderer.getStoreValue('formConfig') || '';
+    let isUpdated = false;
+
+    if (formConfigStore !== '' && values.remember === true) {
+      formConfigStore === JSON.stringify(values) ? isUpdated = false : isUpdated = true
+    } else {
+      isUpdated = true
     }
+
+    if (values.remember === true) {
+      window.electron.ipcRenderer.setStoreValue('formConfig', JSON.stringify(values));
+    } else {
+      window.electron.ipcRenderer.setStoreValue('formConfig', '');
+    }
+
+    // set port
+    values.WEB_PORT = window.electron.ipcRenderer.getStoreValue('WEB_PORT') || 30000;
 
     if (values.mode === 'docker') {
       delete values.url
       delete values.remember
-      window.electron.ipcRenderer.renderAndRunDocker(jsonToText(values));
+      delete values.mode
+      isUpdated ? window.electron.ipcRenderer.renderAndRunDocker(jsonToText(values)) : window.electron.ipcRenderer.reRunDocker(values.WEB_PORT);
     } else {
       window.electron.ipcRenderer.runByUrl(values.url);
     }

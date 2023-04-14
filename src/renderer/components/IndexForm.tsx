@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Checkbox, Form, Input, Radio, Spin } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 
@@ -13,12 +13,19 @@ interface IndexFormProp {
     LLM_MODEL: string;
     API_URL: string;
     MODE: string;
-    URL: string;
+    url: string;
+    mode: string;
+    remember: boolean;
   };
   onFormChange: Function
 }
 
 function IndexForm(props: IndexFormProp) {
+  const [loading, setLoading] = useState(false);
+
+  // 注册表单组件
+  const [form] = Form.useForm();
+  // 注册表单
   let config = {
     API_KEY: props.config.API_KEY,
     USE_PROXY: "True",
@@ -36,11 +43,19 @@ function IndexForm(props: IndexFormProp) {
     API_URL: props.config.API_URL,
     CONCURRENT_COUNT: 100,
     AUTHENTICATION: [],
+    url: props.config.url,
+    mode: props.config.mode,
+    remember: props.config.remember
   };
 
-  let URL = props.config.URL;
+  useEffect(() => {
+    if (props.config.remember) {
+      form.setFieldsValue(config)
+    }
+  }, [])
+
   // 注册模式切换变量
-  const [mode, setMode] = useState<string>('');
+  const [mode, setMode] = useState<string>(props.config.mode);
   const onModeChange = (e: RadioChangeEvent) => {
     setMode(e.target.value as string);
   }
@@ -48,7 +63,6 @@ function IndexForm(props: IndexFormProp) {
   const onFinish = (values: any) => {
     // 将values和合并到config
     Object.assign(config, values);
-    console.log('onFinish', values, config);
     props.onFormChange(config)
   };
 
@@ -56,9 +70,11 @@ function IndexForm(props: IndexFormProp) {
     <div className='form-wrapper'>
       <Form
         name="basic"
+        form={form}
         labelCol={{ span: 8 }}
         wrapperCol={{ span: 16 }}
         style={{ maxWidth: 600 }}
+        initialValues={config}
         onFinish={onFinish}
         autoComplete="off"
       >
@@ -80,7 +96,7 @@ function IndexForm(props: IndexFormProp) {
                 name="API_KEY"
                 rules={[{ required: true, message: 'Please input your api key!' }]}
               >
-                <Input value={config.API_KEY} placeholder='example: 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' />
+                <Input placeholder='example: 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' />
               </Form.Item>
               <Form.Item
                 label="Proxy(HTTP)"
@@ -108,7 +124,7 @@ function IndexForm(props: IndexFormProp) {
               name="url"
               rules={[{ required: true, message: 'Please input url!' }]}
             >
-              <Input value={URL} />
+              <Input value={config.url} />
             </Form.Item>
           )
         }
@@ -122,9 +138,11 @@ function IndexForm(props: IndexFormProp) {
         </Form.Item>
 
         <Form.Item wrapperCol={{ offset: 8, span: 16 }}>
-          <Button type="primary" htmlType="submit">
-            启动
-          </Button>
+          {
+            loading ? <Spin /> : <Button type="primary" htmlType="submit">
+              启动
+            </Button>
+          }
         </Form.Item>
       </Form>
     </div >

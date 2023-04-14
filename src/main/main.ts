@@ -20,7 +20,10 @@ import {
   createOrRewritePythonFile,
   resolveHtmlPath,
   generateDockerfile,
-  runDocker
+  runDocker,
+  getFreePortInRange,
+  stopDockerContainer,
+  rerunDocker
 } from './util';
 
 class AppUpdater {
@@ -40,7 +43,17 @@ ipcMain.on('ipc-example', async (event, arg) => {
   event.reply('ipc-example', msgTemplate('pong'));
 });
 
+ipcMain.on('reRunDocker', async (event, port) => {
+  rerunDocker(port).then((activeUrl) => {
+    mainWindow && mainWindow.loadURL(activeUrl);
+    setTimeout(() => {
+      mainWindow && mainWindow.loadURL(activeUrl);
+    }, 2000)
+  });
+})
+
 ipcMain.on('renderAndRunDocker', async (event, arg) => {
+  const port = Number(store.get('port')) || 30000;
   const srcPath = path.join(os.homedir(), 'chatgpt_academic_data');
 
   if (app.isPackaged && !fs.existsSync(srcPath)) {
@@ -53,10 +66,12 @@ ipcMain.on('renderAndRunDocker', async (event, arg) => {
   generateDockerfile(dockerPath);
 
   // run docker
-  const activeUrl = runDocker(app.isPackaged ? srcPath : './');
-  if (typeof activeUrl === 'string') {
+  runDocker(app.isPackaged ? srcPath : './', port).then((activeUrl) => {
     mainWindow && mainWindow.loadURL(activeUrl);
-  }
+    setTimeout(() => {
+      mainWindow && mainWindow.loadURL(activeUrl);
+    }, 2000)
+  });
 });
 
 ipcMain.on('runByUrl', async (event, arg) => {
@@ -163,6 +178,7 @@ const createWindow = async () => {
 app.on('window-all-closed', () => {
   // Respect the OSX convention of having the application in memory even
   // after all windows have been closed
+  stopDockerContainer();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -172,6 +188,10 @@ app
   .whenReady()
   .then(() => {
     createWindow();
+    getFreePortInRange(30000, 40000).then((port) => {
+      store.set('port', port)
+    })
+
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the
       // dock icon is clicked and there are no other windows open.

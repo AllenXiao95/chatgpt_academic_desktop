@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-syntax */
-
 export default function jsonToText(json: Record<string, unknown>): string {
   const parts: string[] = [];
 
@@ -25,7 +23,6 @@ export default function jsonToText(json: Record<string, unknown>): string {
         formattedValue = value
       }
 
-      console.log(key, value, formattedValue)
       parts.push(`${key} = ${formattedValue}`);
     }
   }

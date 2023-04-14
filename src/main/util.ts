@@ -2,7 +2,8 @@
 import { URL } from 'url';
 import path from 'path';
 import net from 'net';
-import { exec, spawn } from 'child_process';
+import fs from 'fs';
+import { spawn } from 'child_process';
 
 /**
  * Resolves the path of an HTML file based on the environment.
@@ -16,6 +17,7 @@ export function resolveHtmlPath(htmlFileName: string) {
     url.pathname = htmlFileName;
     return url.href;
   }
+
   return `file://${path.resolve(__dirname, '../renderer/', htmlFileName)}`;
 }
 
@@ -25,15 +27,13 @@ export function resolveHtmlPath(htmlFileName: string) {
  * @param text - The text to write to the Python file.
  */
 export function createOrRewritePythonFile(filePath: string, text: string) {
-  try {
-    exec(`echo "${text}" > ${filePath}`);
-    console.log('File saved in ' + filePath);
-  } catch (error) {
-    console.error(`exec error: ${error}`);
-  }
+  fs.writeFile(filePath, text, (err) => {
+    if (err) throw err;
+    console.log('The file has been saved to ' + filePath);
+  });
 }
 
-function getFreePortInRange(start: number, end: number): Promise<number> {
+export function getFreePortInRange(start: number, end: number): Promise<number> {
   return new Promise((resolve, reject) => {
     const checkPort = (port: number) => {
       const server = net.createServer();
@@ -73,12 +73,13 @@ COPY config.py /chatgpt_academic/config.py
 
 WORKDIR /chatgpt_academic
 
-CMD ["python", "-V"]
-CMD ["python3", "-V"]
 CMD ["python3", "-u", "main.py"]
   `
 
-  exec(`echo "${text}" > ${filePath}`);
+  fs.writeFile(filePath, text, (err) => {
+    if (err) throw err;
+    console.log('The file has been saved to ' + filePath);
+  });
   console.log('File saved in ' + filePath);
 }
 
@@ -112,26 +113,50 @@ const promisifiedExec = (cmd: string, opts?: any, onData?: (data: any) => void) 
 /**
  * Build Docker image and run it.
  */
-export async function runDocker(dockerPath: string) {
-  console.log('Building docker image...', dockerPath);
-  const dockerName = 'chatgpt_academic';
-  try {
-    const dockerVersion: any = await promisifiedExec('docker --version', { cwd: dockerPath });
-    console.log(`stdout: ${dockerVersion.stdout}`);
+export async function runDocker(dockerPath: string, port: number): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    console.log('Building docker image...', dockerPath);
+    const dockerName = 'chatgpt_academic';
+    try {
+      const dockerVersion: any = await promisifiedExec('docker --version', { cwd: dockerPath });
+      console.log(`stdout: ${dockerVersion.stdout}`);
 
-    const dockerBuild: any = await promisifiedExec(`docker build -t ${dockerName} --progress=plain .`, { cwd: dockerPath, stdio: 'pipe' });
-    console.log(`stdout: ${dockerBuild.stdout}`);
+      const dockerBuild: any = await promisifiedExec(`docker build -t ${dockerName} --progress=plain .`, { cwd: dockerPath, stdio: 'pipe' });
+      console.log(`stdout: ${dockerBuild.stdout}`);
 
-    const dockerImages: any = await promisifiedExec('docker images', { cwd: dockerPath });
-    console.log(`stdout: ${dockerImages.stdout}`);
+      const dockerImages: any = await promisifiedExec('docker images', { cwd: dockerPath });
+      console.log(`stdout: ${dockerImages.stdout}`);
 
-    const port = await getFreePortInRange(30000, 40000);
-    const dockerRun: any = await promisifiedExec(`docker run --rm -it -p ${port}:${port} ${dockerName}`, { stdio: 'pipe' });
+      const dockerRun: any = await promisifiedExec(`docker run -d --name ${dockerName} --rm -it -p ${port}:${port} ${dockerName}`, { stdio: 'pipe' });
+      console.log(`stdout: ${dockerRun.stdout}`);
+      resolve(`http://localhost:${port}`);
+    } catch (error: any) {
+      console.log(`error: ${error}`);
+      reject(error);
+    }
+  })
+}
 
-    console.log(`stdout: ${dockerRun.stdout}`);
-    return `http://localhost:${port}`;
-  } catch (error: any) {
-    console.error(`error: ${error.message}`);
-    return false;
-  }
+export async function rerunDocker(port: number): Promise<string> {
+  return new Promise(async (resolve, reject) => {
+    const dockerName = 'chatgpt_academic';
+    try {
+      const dockerRun: any = await promisifiedExec(`docker run -d --name ${dockerName} --rm -it -p ${port}:${port} ${dockerName}`, { stdio: 'pipe' });
+      console.log(`stdout: ${dockerRun.stdout}`);
+      resolve(`http://localhost:${port}`);
+    } catch (error: any) {
+      reject(error.message);
+    }
+  })
+}
+
+/**
+ * Deletes the docker container.
+ * @param containerName - The name of the container.
+*/
+export async function stopDockerContainer() {
+  const dockerStop: any = await promisifiedExec(`docker stop chatgpt_academic`, { stdio: 'pipe' });
+  console.log(`stdout: ${dockerStop.stdout}`);
+  const dockerRemove: any = await promisifiedExec(`docker rm chatgpt_academic`, { stdio: 'pipe' });
+  console.log(`stdout: ${dockerRemove.stdout}`);
 }
