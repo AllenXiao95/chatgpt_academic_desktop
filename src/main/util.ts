@@ -3,37 +3,43 @@ import { URL } from 'url';
 import path from 'path';
 import net from 'net';
 import fs from 'fs';
-import { spawn } from 'child_process';
+import { exec, spawn } from 'child_process';
 
 /**
  * Resolves the path of an HTML file based on the environment.
  * @param htmlFileName - The name of the HTML file.
  * @returns The resolved path of the HTML file.
  */
-export function resolveHtmlPath(htmlFileName: string) {
+export function resolveHtmlPath(htmlFileName: string): string {
+  const port = process.env.PORT || 1212;
+  const url = new URL(`http://localhost:${port}`);
   if (process.env.NODE_ENV === 'development') {
-    const port = process.env.PORT || 1212;
-    const url = new URL(`http://localhost:${port}`);
     url.pathname = htmlFileName;
-    return url.href;
+  } else {
+    url.pathname = path.join('renderer', htmlFileName);
   }
-
-  return `file://${path.resolve(__dirname, '../renderer/', htmlFileName)}`;
+  return url.href;
 }
 
 /**
- * Creates or rewrites a Python file with the given text.
- * @param filePath - The path of the Python file.
- * @param text - The text to write to the Python file.
+ * Writes a string to a file, creating the file if it does not exist.
+ * @param filePath - The path of the file to write to.
+ * @param text - The text to write to the file.
  */
-export function createOrRewritePythonFile(filePath: string, text: string) {
+export function writeToFile(filePath: string, text: string): void {
   fs.writeFile(filePath, text, (err) => {
     if (err) throw err;
     console.log('The file has been saved to ' + filePath);
   });
 }
 
-export function getFreePortInRange(start: number, end: number): Promise<number> {
+/**
+ * Get a free port in the given range.
+ * @param start - The start of the port range.
+ * @param end - The end of the port range.
+ * @returns A promise that resolves to the free port number.
+ */
+export function getFreePortInRange(start: number): Promise<number> {
   return new Promise((resolve, reject) => {
     const checkPort = (port: number) => {
       const server = net.createServer();
@@ -54,7 +60,11 @@ export function getFreePortInRange(start: number, end: number): Promise<number> 
   });
 }
 
-export function generateDockerfile(filePath: string) {
+/**
+ * Generate a Dockerfile with the given file path.
+ * @param filePath - The path of the Dockerfile to generate.
+ */
+export function generateDockerfile(filePath: string): void {
   const text = `
 FROM python:3.11
 
@@ -111,7 +121,10 @@ const promisifiedExec = (cmd: string, opts?: any, onData?: (data: any) => void) 
 
 
 /**
- * Build Docker image and run it.
+ * Build and run a Docker image.
+ * @param dockerPath - The path of the Dockerfile.
+ * @param port - The port to run the Docker container on.
+ * @returns A promise that resolves to the URL of the running Docker container.
  */
 export async function runDocker(dockerPath: string, port: number): Promise<string> {
   return new Promise(async (resolve, reject) => {
@@ -137,6 +150,11 @@ export async function runDocker(dockerPath: string, port: number): Promise<strin
   })
 }
 
+/**
+ * Re-Run a Docker container.
+ * @param port - The port to run the Docker container on.
+ * @returns A promise that resolves to the URL of the running Docker container.
+ */
 export async function rerunDocker(port: number): Promise<string> {
   return new Promise(async (resolve, reject) => {
     const dockerName = 'chatgpt_academic';
@@ -151,12 +169,37 @@ export async function rerunDocker(port: number): Promise<string> {
 }
 
 /**
- * Deletes the docker container.
+ * Check the status of the chatgpt_academic Docker container.
+ */
+export async function checkDockerContainerStatus() {
+  let containerStatusRunning = false,
+    location = "";
+  exec(`docker ps --format "{{.Names}}::{{.Status}}::{{.Ports}}"`, (error, stdout, stderr) => {
+    if (error) {
+      console.log(`error: ${error}`);
+    } else if (stderr) {
+      console.log(`stderr: ${stderr}`);
+    } else {
+      const lines = stdout.split('\n');
+      lines.forEach((line) => {
+        const [name, status] = line.split('::');
+        if (name === 'chatgpt_academic' && status.indexOf('Up') !== -1) {
+          containerStatusRunning = true;
+        }
+      })
+    }
+  })
+
+  return containerStatusRunning;
+}
+
+
+/**
+ * Reset chatgpt_academic docker settings.
  * @param containerName - The name of the container.
 */
-export async function stopDockerContainer() {
-  const dockerStop: any = await promisifiedExec(`docker stop chatgpt_academic`, { stdio: 'pipe' });
-  console.log(`stdout: ${dockerStop.stdout}`);
-  const dockerRemove: any = await promisifiedExec(`docker rm chatgpt_academic`, { stdio: 'pipe' });
-  console.log(`stdout: ${dockerRemove.stdout}`);
+export async function resetDockerSettting() {
+  await promisifiedExec(`docker stop chatgpt_academic`, { stdio: 'pipe' });
+  await promisifiedExec(`docker rm chatgpt_academic`, { stdio: 'pipe' });
+  await promisifiedExec(`docker rmi chatgpt_academic`, { stdio: 'pipe' });
 }

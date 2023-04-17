@@ -17,13 +17,14 @@ import log from 'electron-log';
 import MenuBuilder from './menu';
 import Store from 'electron-store'
 import {
-  createOrRewritePythonFile,
+  writeToFile,
   resolveHtmlPath,
   generateDockerfile,
   runDocker,
   getFreePortInRange,
-  stopDockerContainer,
-  rerunDocker
+  resetDockerSettting,
+  rerunDocker,
+  checkDockerContainerStatus
 } from './util';
 
 class AppUpdater {
@@ -45,10 +46,11 @@ ipcMain.on('ipc-example', async (event, arg) => {
 
 ipcMain.on('reRunDocker', async (event, port) => {
   rerunDocker(port).then((activeUrl) => {
+    store.set("lastRedirectUrl", activeUrl);
     mainWindow && mainWindow.loadURL(activeUrl);
     setTimeout(() => {
       mainWindow && mainWindow.loadURL(activeUrl);
-    }, 2000)
+    }, 3000)
   });
 })
 
@@ -62,15 +64,16 @@ ipcMain.on('renderAndRunDocker', async (event, arg) => {
 
   const configPath = app.isPackaged ? path.join(srcPath, 'config.py') : 'config.py';
   const dockerPath = app.isPackaged ? path.join(srcPath, 'Dockerfile') : 'Dockerfile';
-  createOrRewritePythonFile(configPath, arg);
+  writeToFile(configPath, arg);
   generateDockerfile(dockerPath);
 
   // run docker
   runDocker(app.isPackaged ? srcPath : './', port).then((activeUrl) => {
+    store.set("lastRedirectUrl", activeUrl);
     mainWindow && mainWindow.loadURL(activeUrl);
     setTimeout(() => {
       mainWindow && mainWindow.loadURL(activeUrl);
-    }, 2000)
+    }, 3000)
   });
 });
 
@@ -141,6 +144,10 @@ const createWindow = async () => {
   });
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
+  const status = await checkDockerContainerStatus();
+  if (!status) {
+    resetDockerSettting();
+  }
 
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
@@ -171,14 +178,9 @@ const createWindow = async () => {
   new AppUpdater();
 };
 
-/**
- * Add event listeners...
- */
-
 app.on('window-all-closed', () => {
   // Respect the OSX convention of having the application in memory even
   // after all windows have been closed
-  stopDockerContainer();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -188,7 +190,7 @@ app
   .whenReady()
   .then(() => {
     createWindow();
-    getFreePortInRange(30000, 40000).then((port) => {
+    getFreePortInRange(30000).then((port) => {
       store.set('port', port)
     })
 
