@@ -11,7 +11,7 @@
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
@@ -24,7 +24,7 @@ import {
   getFreePortInRange,
   resetDockerSettting,
   rerunDocker,
-  checkDockerContainerStatus
+  checkDockerStatus
 } from './util';
 
 class AppUpdater {
@@ -38,12 +38,14 @@ class AppUpdater {
 let mainWindow: BrowserWindow | null = null;
 const store = new Store()
 
+// Listen for IPC messages with the channel 'ipc-example'
 ipcMain.on('ipc-example', async (event, arg) => {
   const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
   console.log(msgTemplate(arg));
   event.reply('ipc-example', msgTemplate('pong'));
 });
 
+// Listen for IPC messages with the channel 'reRunDocker'
 ipcMain.on('reRunDocker', async (event, port) => {
   rerunDocker(port).then((activeUrl) => {
     store.set("lastRedirectUrl", activeUrl);
@@ -54,6 +56,7 @@ ipcMain.on('reRunDocker', async (event, port) => {
   });
 })
 
+// Listen for IPC messages with the channel 'renderAndRunDocker'
 ipcMain.on('renderAndRunDocker', async (event, arg) => {
   const port = Number(store.get('port')) || 30000;
   const srcPath = path.join(os.homedir(), 'chatgpt_academic_data');
@@ -77,6 +80,7 @@ ipcMain.on('renderAndRunDocker', async (event, arg) => {
   });
 });
 
+// Listen for IPC messages with the channel 'runByUrl'
 ipcMain.on('runByUrl', async (event, arg) => {
   const activeUrl = arg;
   if (typeof activeUrl === 'string') {
@@ -84,10 +88,12 @@ ipcMain.on('runByUrl', async (event, arg) => {
   }
 })
 
+// Listen for IPC messages with the channel 'setStore'
 ipcMain.on('setStore', (_, key, value) => {
   store.set(key, value)
 })
 
+// Listen for IPC messages with the channel 'getStore'
 ipcMain.on('getStore', (_, key) => {
   let value = store.get(key)
   _.returnValue = value || ""
@@ -105,24 +111,8 @@ if (isDebug) {
   require('electron-debug')();
 }
 
-const installExtensions = async () => {
-  const installer = require('electron-devtools-installer');
-  const forceDownload = !!process.env.UPGRADE_EXTENSIONS;
-  const extensions = ['REACT_DEVELOPER_TOOLS'];
-
-  return installer
-    .default(
-      extensions.map((name) => installer[name]),
-      forceDownload
-    )
-    .catch(console.log);
-};
-
+// Create the main window
 const createWindow = async () => {
-  if (isDebug) {
-    await installExtensions();
-  }
-
   const RESOURCES_PATH = app.isPackaged
     ? path.join(process.resourcesPath, 'assets')
     : path.join(__dirname, '../../assets');
@@ -143,12 +133,23 @@ const createWindow = async () => {
     },
   });
 
+  // Load the main HTML file
   mainWindow.loadURL(resolveHtmlPath('index.html'));
-  const status = await checkDockerContainerStatus();
-  if (!status) {
+
+  // Check the status of Docker
+  const status = await checkDockerStatus();
+  if (status === true) {
     resetDockerSettting();
+  } else {
+    // Show a warning dialog if Docker is not ready
+    dialog.showMessageBox({
+      type: 'warning',
+      title: 'Warning',
+      message: 'Dcoker方式可能无法使用, 请检查Docker Service是否就绪!',
+    })
   }
 
+  // Show the main window when it is ready
   mainWindow.on('ready-to-show', () => {
     if (!mainWindow) {
       throw new Error('"mainWindow" is not defined');
@@ -160,10 +161,12 @@ const createWindow = async () => {
     }
   });
 
+  // Close the main window when it is closed
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
 
+  // Build the menu
   const menuBuilder = new MenuBuilder(mainWindow);
   menuBuilder.buildMenu();
 
@@ -173,19 +176,18 @@ const createWindow = async () => {
     return { action: 'deny' };
   });
 
-  // Remove this if your app does not use auto updates
-  // eslint-disable-next-line
+  // Start the app updater
   new AppUpdater();
 };
 
+// Quit the app when all windows are closed
 app.on('window-all-closed', () => {
-  // Respect the OSX convention of having the application in memory even
-  // after all windows have been closed
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
+// Create the main window and get a free port
 app
   .whenReady()
   .then(() => {

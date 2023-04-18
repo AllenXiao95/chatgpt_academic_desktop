@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
+import { checkDockerContainerStatus } from './util';
 
 /**
  * An object containing methods for interacting with the ipcRenderer process

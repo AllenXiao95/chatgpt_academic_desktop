@@ -159,6 +159,8 @@ export async function rerunDocker(port: number): Promise<string> {
   return new Promise(async (resolve, reject) => {
     const dockerName = 'chatgpt_academic';
     try {
+      await promisifiedExec(`docker stop chatgpt_academic`, { stdio: 'pipe' });
+      await promisifiedExec(`docker rm chatgpt_academic`, { stdio: 'pipe' });
       const dockerRun: any = await promisifiedExec(`docker run -d --name ${dockerName} --rm -it -p ${port}:${port} ${dockerName}`, { stdio: 'pipe' });
       console.log(`stdout: ${dockerRun.stdout}`);
       resolve(`http://localhost:${port}`);
@@ -171,9 +173,26 @@ export async function rerunDocker(port: number): Promise<string> {
 /**
  * Check the status of the chatgpt_academic Docker container.
  */
+export async function checkDockerStatus() {
+  let dockerStatus = false;
+  exec(`docker ps`, (error, stdout, stderr) => {
+    if (error) {
+      console.log(`error: ${error}`);
+    } else if (stderr) {
+      console.log(`stderr: ${stderr}`);
+    } else {
+      dockerStatus = true;
+    }
+  })
+
+  return dockerStatus;
+}
+
+/**
+ * Check the status of the chatgpt_academic Docker container.
+ */
 export async function checkDockerContainerStatus() {
-  let containerStatusRunning = false,
-    location = "";
+  let dockerStatusRunning = false;
   exec(`docker ps --format "{{.Names}}::{{.Status}}::{{.Ports}}"`, (error, stdout, stderr) => {
     if (error) {
       console.log(`error: ${error}`);
@@ -184,13 +203,13 @@ export async function checkDockerContainerStatus() {
       lines.forEach((line) => {
         const [name, status] = line.split('::');
         if (name === 'chatgpt_academic' && status.indexOf('Up') !== -1) {
-          containerStatusRunning = true;
+          dockerStatusRunning = true;
         }
       })
     }
   })
 
-  return containerStatusRunning;
+  return dockerStatusRunning;
 }
 
 

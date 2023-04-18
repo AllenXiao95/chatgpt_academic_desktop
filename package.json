@@ -1,5 +1,7 @@
 {
+  "name": "chatgpt_academic_desktop",
   "description": "",
+  "version": "1.0.0",
   "keywords": [
     "electron",
     "boilerplate",
@@ -11,14 +13,6 @@
     "hot",
     "reload"
   ],
-  "homepage": "https://github.com/electron-react-boilerplate/electron-react-boilerplate#readme",
-  "bugs": {
-    "url": "https://github.com/electron-react-boilerplate/electron-react-boilerplate/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/electron-react-boilerplate/electron-react-boilerplate.git"
-  },
   "license": "GPL-3.0-only",
   "author": {
     "name": "Allen.Xiao",

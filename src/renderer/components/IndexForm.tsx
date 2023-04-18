@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Checkbox, Form, Input, Radio, Spin, Modal } from 'antd';
+import { Button, Checkbox, Form, Input, Radio, Spin } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 
 interface IndexFormProp {
@@ -23,8 +23,6 @@ interface IndexFormProp {
 function IndexForm(props: IndexFormProp) {
   // Define state variables
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [lastRedirectUrl, setLastRedirectUrl] = useState('');
 
   // Register form component
   const [form] = Form.useForm();
@@ -57,12 +55,6 @@ function IndexForm(props: IndexFormProp) {
     if (props.config.remember) {
       form.setFieldsValue(config)
     }
-
-    let lastRedirectUrl = window.electron.ipcRenderer.getStoreValue('lastRedirectUrl') || '';
-    setLastRedirectUrl(lastRedirectUrl);
-    if (lastRedirectUrl !== '') {
-      setIsModalOpen(true);
-    };
   }, [])
 
   // Define mode state variable and change handler
@@ -78,20 +70,8 @@ function IndexForm(props: IndexFormProp) {
     props.onFormChange(config);
   };
 
-  const handleOk = () => {
-    window.electron.ipcRenderer.runByUrl(lastRedirectUrl);
-  };
-
-  const handleCancel = () => {
-    setIsModalOpen(false);
-  };
-
-
   return (
     <div className='form-wrapper'>
-      <Modal title="Basic Modal" open={isModalOpen} onOk={handleOk} onCancel={handleCancel}>
-        <p>检测到上次使用的链接, 是否继续使用?</p>
-      </Modal>
       <Spin spinning={loading} tip='启动中! 若第一次启动会耗时很久, 请耐心等待!'>
         <Form
           name="basic"

@@ -1,10 +1,14 @@
 import { MemoryRouter as Router, Routes, Route } from 'react-router-dom';
 import IndexForm from './components/IndexForm';
 import './App.css';
+import { Modal } from 'antd';
 import jsonToText from './utils/index';
 import { useEffect, useState } from 'react';
 
 function Hello() {
+  const [lastRedirectUrl, setLastRedirectUrl] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   // define formConfig
   const [formConfig, setFormConfig] = useState<any>({
     API_KEY: '',
@@ -21,6 +25,12 @@ function Hello() {
   });
 
   useEffect(() => {
+    let lastRedirectUrl = window.electron.ipcRenderer.getStoreValue('lastRedirectUrl') || '';
+    setLastRedirectUrl(lastRedirectUrl);
+    if (lastRedirectUrl !== '') {
+      setIsModalOpen(true);
+    };
+
     let formConfigStore = window.electron.ipcRenderer.getStoreValue('formConfig') || '';
     if (formConfigStore !== '') {
       formConfigStore = JSON.parse(formConfigStore)
@@ -60,8 +70,19 @@ function Hello() {
     }
   }
 
+  const handleOk = () => {
+    window.electron.ipcRenderer.runByUrl(lastRedirectUrl);
+  };
+
+  const handleCancel = () => {
+    setIsModalOpen(false);
+  };
+
   return (
     <div>
+      <Modal title="提示" open={isModalOpen} onOk={handleOk} onCancel={handleCancel}>
+        <p>是否继续使用上次配置?</p>
+      </Modal>
       <IndexForm config={formConfig} onFormChange={onFormChange} />
     </div>
   );
