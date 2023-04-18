@@ -22,7 +22,6 @@ import {
   generateDockerfile,
   runDocker,
   getFreePortInRange,
-  resetDockerSettting,
   rerunDocker,
   checkDockerStatus
 } from './util';
@@ -137,17 +136,16 @@ const createWindow = async () => {
   mainWindow.loadURL(resolveHtmlPath('index.html'));
 
   // Check the status of Docker
-  const status = await checkDockerStatus();
-  if (status === true) {
-    resetDockerSettting();
-  } else {
+  checkDockerStatus().then(() => {
+    // wait for other process
+  }).catch(() => {
     // Show a warning dialog if Docker is not ready
     dialog.showMessageBox({
       type: 'warning',
       title: 'Warning',
       message: 'Dcoker方式可能无法使用, 请检查Docker Service是否就绪!',
     })
-  }
+  })
 
   // Show the main window when it is ready
   mainWindow.on('ready-to-show', () => {

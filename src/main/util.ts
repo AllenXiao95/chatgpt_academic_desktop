@@ -10,15 +10,14 @@ import { exec, spawn } from 'child_process';
  * @param htmlFileName - The name of the HTML file.
  * @returns The resolved path of the HTML file.
  */
-export function resolveHtmlPath(htmlFileName: string): string {
-  const port = process.env.PORT || 1212;
-  const url = new URL(`http://localhost:${port}`);
+export function resolveHtmlPath(htmlFileName: string) {
   if (process.env.NODE_ENV === 'development') {
+    const port = process.env.PORT || 1212;
+    const url = new URL(`http://localhost:${port}`);
     url.pathname = htmlFileName;
-  } else {
-    url.pathname = path.join('renderer', htmlFileName);
+    return url.href;
   }
-  return url.href;
+  return `file://${path.resolve(__dirname, '../renderer/', htmlFileName)}`;
 }
 
 /**
@@ -97,6 +96,7 @@ CMD ["python3", "-u", "main.py"]
 const promisifiedExec = (cmd: string, opts?: any, onData?: (data: any) => void) =>
   new Promise((resolve, reject) => {
     const proc = spawn(cmd, {
+      detached: true,
       shell: true,
       cwd: opts?.cwd,
       stdio: 'inherit',
@@ -173,19 +173,21 @@ export async function rerunDocker(port: number): Promise<string> {
 /**
  * Check the status of the chatgpt_academic Docker container.
  */
-export async function checkDockerStatus() {
-  let dockerStatus = false;
-  exec(`docker ps`, (error, stdout, stderr) => {
-    if (error) {
-      console.log(`error: ${error}`);
-    } else if (stderr) {
-      console.log(`stderr: ${stderr}`);
-    } else {
-      dockerStatus = true;
-    }
+export function checkDockerStatus() {
+  return new Promise((resolve, reject) => {
+    exec(`docker ps`, (error, stdout, stderr) => {
+      if (error) {
+        console.log(`error: ${error}`);
+        reject()
+      } else if (stderr) {
+        reject()
+        console.log(`stderr: ${stderr}`);
+      } else {
+        console.log(`stdout: ${stdout}`);
+        resolve(true);
+      }
+    });
   })
-
-  return dockerStatus;
 }
 
 /**
