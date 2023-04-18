@@ -1,3 +1,13 @@
+# Usage
+## docker方式
+
+## url方式
+
+## 功能
+- 自动化配置并运行docker容器
+- 本地化存储配置
+
+# 本地运行
 ## Install
 
 install dependencies:
