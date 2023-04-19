@@ -23,7 +23,8 @@ import {
   runDocker,
   getFreePortInRange,
   rerunDocker,
-  checkDockerStatus
+  checkDockerStatus,
+  checkDockerContainerStatus
 } from './util';
 
 class AppUpdater {
@@ -57,6 +58,7 @@ ipcMain.on('reRunDocker', async (event, port) => {
 
 // Listen for IPC messages with the channel 'renderAndRunDocker'
 ipcMain.on('renderAndRunDocker', async (event, arg) => {
+  let isListening = true;
   const port = Number(store.get('port')) || 30000;
   const srcPath = path.join(os.homedir(), 'chatgpt_academic_data');
 
@@ -66,17 +68,32 @@ ipcMain.on('renderAndRunDocker', async (event, arg) => {
 
   const configPath = app.isPackaged ? path.join(srcPath, 'config.py') : 'config.py';
   const dockerPath = app.isPackaged ? path.join(srcPath, 'Dockerfile') : 'Dockerfile';
-  writeToFile(configPath, arg);
-  generateDockerfile(dockerPath);
+  await writeToFile(configPath, arg);
+  await generateDockerfile(dockerPath);
 
   // run docker
-  runDocker(app.isPackaged ? srcPath : './', port).then((activeUrl) => {
-    store.set("lastRedirectUrl", activeUrl);
-    mainWindow && mainWindow.loadURL(activeUrl);
-    setTimeout(() => {
-      mainWindow && mainWindow.loadURL(activeUrl);
-    }, 3000)
+  runDocker(app.isPackaged ? srcPath : './', port).catch((err) => {
+    isListening = false
+    console.log("runDocker::", err);
   });
+
+  const activeUrl = `http://localhost:${port}`;
+  // set interval to fetch container is exist or not
+  let interval = setInterval(async () => {
+    checkDockerContainerStatus().then((isPass) => {
+      console.log("checkDockerContainerStatus::", isPass);
+      if (isPass) {
+        clearInterval(interval)
+        isListening = false
+        store.set("lastRedirectUrl", activeUrl);
+        mainWindow && mainWindow.loadURL(activeUrl);
+        setTimeout(() => {
+          mainWindow && mainWindow.loadURL(activeUrl);
+        }, 3000)
+      }
+    })
+  }, 5000)
+
 });
 
 // Listen for IPC messages with the channel 'runByUrl'

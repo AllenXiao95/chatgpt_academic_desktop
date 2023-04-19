@@ -4,6 +4,9 @@ import path from 'path';
 import net from 'net';
 import fs from 'fs';
 import { exec, spawn } from 'child_process';
+import { dialog } from 'electron';
+
+const ENV = process.platform === 'darwin' ? { env: { ...process.env, PATH: `${process.env.PATH}:/usr/local/bin` } } : {};
 
 /**
  * Resolves the path of an HTML file based on the environment.
@@ -93,33 +96,6 @@ CMD ["python3", "-u", "main.py"]
 }
 
 
-const promisifiedExec = (cmd: string, opts?: any, onData?: (data: any) => void) =>
-  new Promise((resolve, reject) => {
-    const proc = spawn(cmd, {
-      detached: true,
-      shell: true,
-      cwd: opts?.cwd,
-      stdio: 'inherit',
-    });
-    const chunks: any[] = [];
-    proc.stdout?.on('data', (chunk) => {
-      if (onData) {
-        onData(chunk);
-      }
-      chunks.push(chunk);
-    });
-    proc.on('error', reject);
-    proc.on('close', (code) => {
-      const stdout = Buffer.concat(chunks).toString();
-      if (code === 0) {
-        resolve({ code, stdout });
-      } else {
-        reject({ code, stdout });
-      }
-    });
-  });
-
-
 /**
  * Build and run a Docker image.
  * @param dockerPath - The path of the Dockerfile.
@@ -130,23 +106,18 @@ export async function runDocker(dockerPath: string, port: number): Promise<strin
   return new Promise(async (resolve, reject) => {
     console.log('Building docker image...', dockerPath);
     const dockerName = 'chatgpt_academic';
-    try {
-      const dockerVersion: any = await promisifiedExec('docker --version', { cwd: dockerPath });
-      console.log(`stdout: ${dockerVersion.stdout}`);
-
-      const dockerBuild: any = await promisifiedExec(`docker build -t ${dockerName} --progress=plain .`, { cwd: dockerPath, stdio: 'pipe' });
-      console.log(`stdout: ${dockerBuild.stdout}`);
-
-      const dockerImages: any = await promisifiedExec('docker images', { cwd: dockerPath });
-      console.log(`stdout: ${dockerImages.stdout}`);
-
-      const dockerRun: any = await promisifiedExec(`docker run -d --name ${dockerName} --rm -it -p ${port}:${port} ${dockerName}`, { stdio: 'pipe' });
-      console.log(`stdout: ${dockerRun.stdout}`);
-      resolve(`http://localhost:${port}`);
-    } catch (error: any) {
-      console.log(`error: ${error}`);
-      reject(error);
-    }
+    exec(`docker build -t ${dockerName} --progress=plain . && docker run -d --name ${dockerName} -p ${port}:${port} ${dockerName}`, { ...ENV, cwd: dockerPath }, (error, stdout, stderr) => {
+      if (error) {
+        console.log(`error: ${error}`);
+        reject(error);
+      } else if (stderr) {
+        console.log(`stderr: ${stderr}`);
+        reject(stderr);
+      } else {
+        console.log(`stdout: ${stdout}`);
+        resolve(`http://localhost:${port}`);
+      }
+    });
   })
 }
 
@@ -159,11 +130,16 @@ export async function rerunDocker(port: number): Promise<string> {
   return new Promise(async (resolve, reject) => {
     const dockerName = 'chatgpt_academic';
     try {
-      await promisifiedExec(`docker stop chatgpt_academic`, { stdio: 'pipe' });
-      await promisifiedExec(`docker rm chatgpt_academic`, { stdio: 'pipe' });
-      const dockerRun: any = await promisifiedExec(`docker run -d --name ${dockerName} --rm -it -p ${port}:${port} ${dockerName}`, { stdio: 'pipe' });
-      console.log(`stdout: ${dockerRun.stdout}`);
-      resolve(`http://localhost:${port}`);
+      exec(`docker stop chatgpt_academic && docker rm chatgpt_academic && docker run -d --name ${dockerName} -p ${port}:${port} ${dockerName}`, ENV, (error, stdout, stderr) => {
+        if (error) {
+          console.log(`error: ${error}`);
+        } else if (stderr) {
+          console.log(`stderr: ${stderr}`);
+        } else {
+          console.log(`stdout: ${stdout}`);
+        }
+        resolve(`http://localhost:${port}`);
+      });
     } catch (error: any) {
       reject(error.message);
     }
@@ -174,8 +150,13 @@ export async function rerunDocker(port: number): Promise<string> {
  * Check the status of the chatgpt_academic Docker container.
  */
 export function checkDockerStatus() {
+  dialog.showMessageBox({
+    type: 'info',
+    message: `Checking docker services...${process.platform}`,
+  })
+
   return new Promise((resolve, reject) => {
-    exec(`docker ps`, (error, stdout, stderr) => {
+    exec(`docker ps`, ENV, (error, stdout, stderr) => {
       if (error) {
         console.log(`error: ${error}`);
         reject()
@@ -193,25 +174,30 @@ export function checkDockerStatus() {
 /**
  * Check the status of the chatgpt_academic Docker container.
  */
-export async function checkDockerContainerStatus() {
-  let dockerStatusRunning = false;
-  exec(`docker ps --format "{{.Names}}::{{.Status}}::{{.Ports}}"`, (error, stdout, stderr) => {
-    if (error) {
-      console.log(`error: ${error}`);
-    } else if (stderr) {
-      console.log(`stderr: ${stderr}`);
-    } else {
-      const lines = stdout.split('\n');
-      lines.forEach((line) => {
-        const [name, status] = line.split('::');
-        if (name === 'chatgpt_academic' && status.indexOf('Up') !== -1) {
-          dockerStatusRunning = true;
-        }
-      })
-    }
-  })
+export function checkDockerContainerStatus(): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    exec(`docker ps --format "{{.Names}}::{{.Status}}::{{.Ports}}"`, ENV, (error, stdout, stderr) => {
+      if (error) {
+        reject()
+        console.log(`error: ${error}`);
+      } else if (stderr) {
+        reject()
+        console.log(`stderr: ${stderr}`);
+      } else {
+        const lines = stdout.split('\n');
+        console.log(`lines:: ${lines}`);
+        lines.forEach((line) => {
+          const [name, status] = line.split('::');
+          if (name === 'chatgpt_academic' && status.indexOf('Up') !== -1) {
+            resolve(true);
+          }
+        })
 
-  return dockerStatusRunning;
+        reject()
+      }
+    })
+
+  })
 }
 
 
@@ -220,7 +206,13 @@ export async function checkDockerContainerStatus() {
  * @param containerName - The name of the container.
 */
 export async function resetDockerSettting() {
-  await promisifiedExec(`docker stop chatgpt_academic`, { stdio: 'pipe' });
-  await promisifiedExec(`docker rm chatgpt_academic`, { stdio: 'pipe' });
-  await promisifiedExec(`docker rmi chatgpt_academic`, { stdio: 'pipe' });
+  exec(`docker stop chatgpt_academic && docker rm chatgpt_academic && docker rmi chatgpt_academic`, ENV, (error, stdout, stderr) => {
+    if (error) {
+      console.log(`error: ${error}`);
+    } else if (stderr) {
+      console.log(`stderr: ${stderr}`);
+    } else {
+      console.log(`stdout: ${stdout}`);
+    }
+  });
 }
