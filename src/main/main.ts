@@ -24,7 +24,8 @@ import {
   getFreePortInRange,
   rerunDocker,
   checkDockerStatus,
-  checkDockerContainerStatus
+  checkDockerContainerStatus,
+  resetDockerSetting
 } from './util';
 
 class AppUpdater {
@@ -76,8 +77,9 @@ ipcMain.on('renderAndRunDocker', async (event, arg) => {
     isListening = false
     console.log("runDocker::", err);
   });
-
-  const activeUrl = `http://localhost:${port}`;
+ 
+  const theme = store.get('theme') || 'dark';
+  const activeUrl = `http://localhost:${port}${theme === 'dark' ? '/?__dark-theme=true' : ''}`;
   // set interval to fetch container is exist or not
   let interval = setInterval(async () => {
     checkDockerContainerStatus().then((isPass) => {
@@ -102,6 +104,12 @@ ipcMain.on('runByUrl', async (event, arg) => {
   if (typeof activeUrl === 'string') {
     mainWindow && mainWindow.loadURL(activeUrl);
   }
+})
+
+// Listen for IPC messages with the channel 'resetDockerSetting'
+ipcMain.on('resetDockerSetting', async (event, arg) => {
+  console.log("resetDockerSetting...");
+  resetDockerSetting();
 })
 
 // Listen for IPC messages with the channel 'setStore'

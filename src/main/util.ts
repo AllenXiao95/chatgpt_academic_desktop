@@ -15,7 +15,7 @@ const ENV = process.platform === 'darwin' ? { env: { ...process.env, PATH: `${pr
  */
 export function resolveHtmlPath(htmlFileName: string) {
   if (process.env.NODE_ENV === 'development') {
-    const port = process.env.PORT || 1212;
+    const port = process.env.PORT || 8888;
     const url = new URL(`http://localhost:${port}`);
     url.pathname = htmlFileName;
     return url.href;
@@ -150,11 +150,7 @@ export async function rerunDocker(port: number): Promise<string> {
  * Check the status of the chatgpt_academic Docker container.
  */
 export function checkDockerStatus() {
-  dialog.showMessageBox({
-    type: 'info',
-    message: `Checking docker services...${process.platform}`,
-  })
-
+  console.log('Checking the status of the chatgpt_academic Docker container...');
   return new Promise((resolve, reject) => {
     exec(`docker ps`, ENV, (error, stdout, stderr) => {
       if (error) {
@@ -200,12 +196,12 @@ export function checkDockerContainerStatus(): Promise<boolean> {
   })
 }
 
-
 /**
  * Reset chatgpt_academic docker settings.
  * @param containerName - The name of the container.
 */
-export async function resetDockerSettting() {
+export async function resetDockerSetting() {
+  console.log('Resetting chatgpt_academic docker settings...');
   exec(`docker stop chatgpt_academic && docker rm chatgpt_academic && docker rmi chatgpt_academic`, ENV, (error, stdout, stderr) => {
     if (error) {
       console.log(`error: ${error}`);

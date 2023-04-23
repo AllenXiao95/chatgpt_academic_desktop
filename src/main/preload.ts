@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-import { checkDockerContainerStatus } from './util';
 
 /**
  * An object containing methods for interacting with the ipcRenderer process
@@ -82,6 +81,13 @@ const electronHandler = {
       const resp = ipcRenderer.sendSync("getStore", key)
       return resp
     },
+
+    /**
+     * Sends a message to the main process to reset docker
+    */
+    resetDocker() {
+      return ipcRenderer.send("resetDockerSetting")
+    }
   },
 };
 

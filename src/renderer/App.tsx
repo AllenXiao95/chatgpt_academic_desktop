@@ -19,24 +19,27 @@ function Hello() {
     WEB_PORT: 0,
     LLM_MODEL: 'gpt-3.5-turbo',
     API_URL: 'https://api.openai.com/v1/chat/completions',
+    theme: "dark",
     mode: 'docker',
     url: '',
     remember: false
   });
 
   useEffect(() => {
-    let lastRedirectUrl = window.electron.ipcRenderer.getStoreValue('lastRedirectUrl') || '';
-    setLastRedirectUrl(lastRedirectUrl);
-    if (lastRedirectUrl !== '') {
-      setIsModalOpen(true);
-    };
-
-    let formConfigStore = window.electron.ipcRenderer.getStoreValue('formConfig') || '';
-    if (formConfigStore !== '') {
-      formConfigStore = JSON.parse(formConfigStore)
-
-      formConfigStore.remember ? setFormConfig(formConfigStore) : null
-    };
+    if (window.electron) {
+      let lastRedirectUrl = window.electron.ipcRenderer.getStoreValue('lastRedirectUrl') || '';
+      setLastRedirectUrl(lastRedirectUrl);
+      if (lastRedirectUrl !== '') {
+        setIsModalOpen(true);
+      };
+  
+      let formConfigStore = window.electron.ipcRenderer.getStoreValue('formConfig') || '';
+      if (formConfigStore !== '') {
+        formConfigStore = JSON.parse(formConfigStore)
+  
+        formConfigStore.remember ? setFormConfig(formConfigStore) : null
+      };
+    }
   }, [])
 
 
@@ -64,6 +67,7 @@ function Hello() {
       delete values.url
       delete values.remember
       delete values.mode
+      delete values.theme
       isUpdated ? window.electron.ipcRenderer.renderAndRunDocker(jsonToText(values)) : window.electron.ipcRenderer.reRunDocker(values.WEB_PORT);
     } else {
       window.electron.ipcRenderer.runByUrl(values.url);
@@ -75,6 +79,7 @@ function Hello() {
   };
 
   const handleCancel = () => {
+    window.electron.ipcRenderer.resetDocker();
     setIsModalOpen(false);
   };
 

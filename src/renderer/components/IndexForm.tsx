@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button, Checkbox, Form, Input, Radio, Spin } from 'antd';
+import { Button, Checkbox, Form, Input, Radio, Spin, Select } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 
 interface IndexFormProp {
@@ -9,6 +9,7 @@ interface IndexFormProp {
       http: string;
       https: string;
     };
+
     WEB_PORT: number;
     LLM_MODEL: string;
     API_URL: string;
@@ -35,6 +36,7 @@ function IndexForm(props: IndexFormProp) {
       http: props.config.proxies.http,
       https: props.config.proxies.https,
     },
+    DEFAULT_WORKER_NUM: 3,
     CHATBOT_HEIGHT: 1115,
     CODE_HIGHLIGHT: "True",
     LAYOUT: 'LEFT-RIGHT',
@@ -47,6 +49,7 @@ function IndexForm(props: IndexFormProp) {
     AUTHENTICATION: [],
     url: props.config.url,
     mode: props.config.mode,
+    theme: 'dark',
     remember: props.config.remember
   };
 
@@ -69,6 +72,11 @@ function IndexForm(props: IndexFormProp) {
     Object.assign(config, values);
     props.onFormChange(config);
   };
+
+  // Define theme change handler
+  const onThemeChange = (value: string) => {
+    window.electron.ipcRenderer.setStoreValue('theme', value);
+  }
 
   return (
     <div className='form-wrapper'>
@@ -117,6 +125,38 @@ function IndexForm(props: IndexFormProp) {
                   rules={[{ required: true, message: 'Please input your proxy setting!' }]}
                 >
                   <Input value={config.proxies.https} placeholder='example: socks5h://localhost:11284' />
+                </Form.Item>
+
+
+                <Form.Item
+                  label="Gradio主题设置"
+                  name='theme'
+                  rules={[{ required: true }]}
+                  >
+                  <Select
+                    onChange={onThemeChange}
+                    style={{ width: 240 }}
+                    options={[
+                      { value: 'light', label: 'light' },
+                      { value: 'dark', label: 'dark' },
+                    ]}
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  label="OpenAI模型选择"
+                  name='LLM_MODEL'
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    style={{ width: 240 }}
+                    options={[
+                      { value: 'gpt-3.5-turbo', label: 'gpt-3.5-turbo' },
+                      { value: 'api2d-gpt-3.5-turbo', label: 'api2d-gpt-3.5-turbo' },
+                      { value: 'gpt-4', label: 'gpt-4' },
+                      { value: 'api2d-gpt-4', label: 'api2d-gpt-4' },
+                    ]}
+                  />
                 </Form.Item>
               </div>
             )
